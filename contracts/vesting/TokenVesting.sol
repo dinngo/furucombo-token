@@ -1,0 +1,289 @@
+pragma solidity ^0.6.0;
+
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
+/**
+ * @title TokenVesting
+ * @dev A token holder contract that can release its token balance gradually like a
+ * typical vesting scheme, with a cliff and vesting period. Optionally revocable by the owner.
+ */
+contract TokenVesting is Ownable {
+    // The vesting schedule is time-based (i.e. using block timestamps as opposed to e.g. block numbers), and is
+    // therefore sensitive to timestamp manipulation (which is something miners can do, to a certain degree). Therefore,
+    // it is recommended to avoid using short time durations (less than a minute). Typical vesting schemes, with a
+    // cliff period of a year and a duration of four years, are safe to use.
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
+    event TokensReleased(address account, uint256 amount);
+    event TokenVestingRevoked(address account);
+
+    address public vestingToken;
+    uint256 public totalReleased;
+    uint256 public totalAllocated;
+
+    struct Beneficiary {
+        uint256 start;
+        uint256 cliff;
+        uint256 duration;
+        uint256 amount;
+        uint256 released;
+        bool revocable;
+        bool revoked;
+        bool initialized;
+    }
+
+    mapping(address => Beneficiary) private _vestingBeneficiaries;
+
+    modifier isRegistered(address account) {
+        require(
+            _vestingBeneficiaries[account].initialized,
+            "TokenVesting: account is unregistered"
+        );
+        _;
+    }
+
+    /**
+     * @dev Sets the values for vestingToken. vestingToken is immutable:
+     * they can only be set once during construction.
+     */
+
+    constructor(address token) public Ownable() {
+        vestingToken = token;
+    }
+
+    /* ========== Public View FUNCTIONS ========== */
+
+    /**
+     * @return the cliff time of the token vesting.
+     */
+    function cliff(address account)
+        public
+        view
+        isRegistered(account)
+        returns (uint256)
+    {
+        return _vestingBeneficiaries[account].cliff;
+    }
+
+    /**
+     * @return the start time of the token vesting.
+     */
+    function start(address account)
+        public
+        view
+        isRegistered(account)
+        returns (uint256)
+    {
+        return _vestingBeneficiaries[account].start;
+    }
+
+    /**
+     * @return the duration of the token vesting.
+     */
+    function duration(address account)
+        public
+        view
+        isRegistered(account)
+        returns (uint256)
+    {
+        return _vestingBeneficiaries[account].duration;
+    }
+
+    /**
+     * @return true if the vesting is revocable.
+     */
+    function revocable(address account)
+        public
+        view
+        isRegistered(account)
+        returns (bool)
+    {
+        return _vestingBeneficiaries[account].revocable;
+    }
+
+    /**
+     * @return the amount of the token released.
+     */
+    function released(address account)
+        public
+        view
+        isRegistered(account)
+        returns (uint256)
+    {
+        return _vestingBeneficiaries[account].released;
+    }
+
+    /**
+     * @return true if the token is revoked.
+     */
+    function revoked(address account)
+        public
+        view
+        isRegistered(account)
+        returns (bool)
+    {
+        return _vestingBeneficiaries[account].revoked;
+    }
+
+    /**
+     * @return the  amount of vesting token
+     */
+    function amount(address account)
+        public
+        view
+        isRegistered(account)
+        returns (uint256)
+    {
+        return _vestingBeneficiaries[account].amount;
+    }
+
+    /**
+     * @return true if the account is initialized.
+     */
+    function initialized(address account)
+        public
+        view
+        isRegistered(account)
+        returns (bool)
+    {
+        return _vestingBeneficiaries[account].initialized;
+    }
+
+    /**
+     * @dev Add beneficiary with related information to the vesting contract
+     * @param _account address of the beneficiary to whom vested tokens are transferred
+     * @param _start the time (as Unix time) at which point vesting starts
+     * @param _cliffDuration duration in seconds of the cliff in which tokens will begin to vest
+     * @param _duration duration in seconds of the period in which the tokens will vest
+     * @param _amount the vesting amount of beneficiary
+     * @param _revocable whether the vesting is revocable or not
+     */
+    function register(
+        address _account,
+        uint256 _start,
+        uint256 _cliffDuration,
+        uint256 _duration,
+        uint256 _amount,
+        bool _revocable
+    ) public onlyOwner {
+        require(
+            !_vestingBeneficiaries[_account].initialized,
+            "TokenVesting: account has been registered"
+        );
+        require(
+            _account != address(0),
+            "TokenVesting: account is the zero address"
+        );
+        require(
+            _cliffDuration <= _duration,
+            "TokenVesting: cliff is longer than duration"
+        );
+        require(_duration > 0, "TokenVesting: duration is 0");
+        require(
+            _start.add(_duration) > block.timestamp,
+            "TokenVesting: final time is before current time"
+        );
+        require(
+            totalAllocated.add(_amount) <=
+                IERC20(vestingToken).balanceOf(address(this)),
+            "TokenVesting: insufficient balance"
+        );
+
+        Beneficiary memory beneficiary = Beneficiary(
+            _start,
+            _start.add(_cliffDuration),
+            _duration,
+            _amount,
+            0,
+            _revocable,
+            false,
+            true
+        );
+        _vestingBeneficiaries[_account] = beneficiary;
+        totalAllocated = totalAllocated.add(_amount);
+    }
+
+    /**
+     * @notice Transfers vested tokens to beneficiary.
+     * @param _account The address of beneficiary
+     */
+    function claim(address _account)
+        public
+        isRegistered(_account)
+        returns (uint256)
+    {
+        Beneficiary storage beneficiary = _vestingBeneficiaries[_account];
+        uint256 unreleasedAmt = _releasableAmount(beneficiary);
+        require(unreleasedAmt > 0, "TokenVesting: no tokens are due");
+        IERC20(vestingToken).safeTransfer(_account, unreleasedAmt);
+        beneficiary.released = beneficiary.released.add(unreleasedAmt);
+        totalReleased = totalReleased.add(unreleasedAmt);
+        emit TokensReleased(_account, unreleasedAmt);
+        return unreleasedAmt;
+    }
+
+    /**
+     * @notice Allows the owner to revoke the vesting. Tokens already vested
+     * remain in the contract, but the released amount will be updated.
+     * @param _account The address of beneficiary
+     */
+    function revoke(address _account) public isRegistered(_account) onlyOwner {
+        Beneficiary storage beneficiary = _vestingBeneficiaries[_account];
+        require(beneficiary.revocable, "TokenVesting: cannot revoke");
+        require(!beneficiary.revoked, "TokenVesting: account already revoked");
+
+        uint256 unreleasedAmt = _releasableAmount(beneficiary);
+        uint256 refund = beneficiary.amount.sub(
+            beneficiary.released.add(unreleasedAmt)
+        );
+
+        beneficiary.amount = beneficiary.amount.sub(refund);
+        beneficiary.revoked = true;
+
+        // fee the allocated amount
+        totalAllocated = totalAllocated.sub(refund);
+        emit TokenVestingRevoked(_account);
+    }
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    /**
+     * @dev Calculates the amount that has already vested but hasn't been released yet.
+     * @param _beneficiary The related information of beneficiary
+     */
+    function _releasableAmount(Beneficiary storage _beneficiary)
+        private
+        view
+        returns (uint256)
+    {
+        return _vestedAmount(_beneficiary).sub(_beneficiary.released);
+    }
+
+    /**
+     * @dev Calculates the amount that has already vested.
+     * @param _beneficiary The related information of beneficiary
+     */
+    function _vestedAmount(Beneficiary storage _beneficiary)
+        private
+        view
+        returns (uint256)
+    {
+        if (block.timestamp < _beneficiary.cliff) {
+            return 0;
+        } else if (
+            block.timestamp >= _beneficiary.start.add(_beneficiary.duration) ||
+            _beneficiary.revoked
+        ) {
+            return _beneficiary.amount;
+        } else {
+            return
+                _beneficiary
+                    .amount
+                    .mul(block.timestamp.sub(_beneficiary.start))
+                    .div(_beneficiary.duration);
+        }
+    }
+}
