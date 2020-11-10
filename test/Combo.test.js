@@ -18,12 +18,10 @@ const { expect } = require('chai');
 const { evmRevert, evmSnapshot } = require('./utils/utils');
 
 const Combo = artifacts.require('COMBO');
-// const IToken = artifacts.require('IERC20');
 
 contract('COMBO', function([_, user, someone]) {
   before(async function() {
     this.combo = await Combo.new();
-    await this.combo.addMinter(user);
   });
 
   beforeEach(async function() {
@@ -34,74 +32,22 @@ contract('COMBO', function([_, user, someone]) {
     await evmRevert(id);
   });
 
-  describe('minter', function() {
+  describe('transfer', function() {
     beforeEach(async function() {});
-
     it('normal', async function() {
-      const mintAmount = ether('1000000');
-      await this.combo.mint(someone, mintAmount, { from: user });
-      expect(await this.combo.balanceOf.call(someone)).to.be.bignumber.eq(
+      const totalSupply = ether('100000000'); // 100M
+      expect(await this.combo.totalSupply()).to.be.bignumber.eq(totalSupply);
+      expect(await this.combo.decimals()).to.be.bignumber.eq(new BN('18'));
+      expect(await this.combo.symbol()).to.be.eq('COMBO');
+      expect(await this.combo.name()).to.be.eq('Furucombo');
+      expect(await this.combo.balanceOf.call(_)).to.be.bignumber.eq(
+        totalSupply
+      );
+
+      const mintAmount = ether('1000000'); // 1M
+      await this.combo.transfer(user, mintAmount, { from: _ });
+      expect(await this.combo.balanceOf.call(user)).to.be.bignumber.eq(
         mintAmount
-      );
-      expect(await this.combo.totalSupply()).to.be.bignumber.eq(mintAmount);
-    });
-
-    it('should revert: not minter', async function() {
-      const mintAmount = ether('1000000');
-      await expectRevert(
-        this.combo.mint(someone, mintAmount, { from: someone }),
-        '!minter'
-      );
-    });
-  });
-
-  describe('mint', function() {
-    beforeEach(async function() {});
-    it('mint', async function() {
-      const mintAmount = ether('1000000');
-      await this.combo.mint(someone, mintAmount, { from: user });
-      expect(await this.combo.balanceOf.call(someone)).to.be.bignumber.eq(
-        mintAmount
-      );
-      expect(await this.combo.totalSupply()).to.be.bignumber.eq(mintAmount);
-    });
-
-    it('should revert: remove minter', async function() {
-      await this.combo.removeMinter(user);
-      const mintAmount = ether('1000000');
-      await expectRevert(
-        this.combo.mint(someone, mintAmount, { from: user }),
-        '!minter'
-      );
-    });
-  });
-
-  describe('Governance', function() {
-    beforeEach(async function() {});
-    it('set governance', async function() {
-      await this.combo.setGovernance(user, { from: _ });
-      expect(await this.combo.governance()).to.equal(user);
-    });
-
-    it('should revert: not governance', async function() {
-      await expectRevert(
-        this.combo.setGovernance(user, { from: user }),
-        '!governance'
-      );
-    });
-  });
-
-  describe('Transfer', function() {
-    beforeEach(async function() {
-      const mintAmount = ether('1000000');
-      await this.combo.mint(user, mintAmount, { from: user });
-    });
-
-    it('transfer', async function() {
-      const amount = ether('1');
-      this.combo.transfer(someone, amount, { from: user });
-      expect(await this.combo.balanceOf.call(someone)).to.be.bignumber.eq(
-        amount
       );
     });
   });

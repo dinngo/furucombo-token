@@ -1,41 +1,20 @@
 pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /**
- * @title Furucombo Token
- * @dev Furucombo Token contract.
+ * @title Furucombo
+ * @dev Furucombo Token contract. Where all tokens are pre-assigned to the creator.
+ * Note they can later distribute these tokens as they wish using `transfer` and other
+ * `StandardToken` functions.
  */
 contract COMBO is ERC20 {
-    using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
 
-    address public governance;
-    mapping(address => bool) public minters;
-
-    constructor() public ERC20("Furucombo Token", "COMBO") {
-        governance = msg.sender;
-    }
-
-    function mint(address account, uint256 amount) public {
-        require(minters[msg.sender], "!minter");
-        _mint(account, amount);
-    }
-
-    function setGovernance(address _governance) public {
-        require(msg.sender == governance, "!governance");
-        governance = _governance;
-    }
-
-    function addMinter(address _minter) public {
-        require(msg.sender == governance, "!governance");
-        minters[_minter] = true;
-    }
-
-    function removeMinter(address _minter) public {
-        require(msg.sender == governance, "!governance");
-        minters[_minter] = false;
+    constructor() public ERC20("Furucombo", "COMBO") {
+        // mint amount 100M
+        uint256 supply = 100000000 * (10**uint256(decimals()));
+        _mint(msg.sender, supply);
     }
 }
