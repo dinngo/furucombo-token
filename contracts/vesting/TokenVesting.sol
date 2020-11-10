@@ -218,6 +218,7 @@ contract TokenVesting is Ownable {
         Beneficiary storage beneficiary = _vestingBeneficiaries[_account];
         uint256 unreleasedAmt = _releasableAmount(beneficiary);
         require(unreleasedAmt > 0, "TokenVesting: no tokens are due");
+
         IERC20(vestingToken).safeTransfer(_account, unreleasedAmt);
         beneficiary.released = beneficiary.released.add(unreleasedAmt);
         totalReleased = totalReleased.add(unreleasedAmt);
@@ -240,10 +241,10 @@ contract TokenVesting is Ownable {
             beneficiary.released.add(unreleasedAmt)
         );
 
+        // the amount of beneficiary will minus refund amount
+        // claim amount = new amount - released amount
         beneficiary.amount = beneficiary.amount.sub(refund);
         beneficiary.revoked = true;
-
-        // fee the allocated amount
         totalAllocated = totalAllocated.sub(refund);
         emit TokenVestingRevoked(_account);
     }

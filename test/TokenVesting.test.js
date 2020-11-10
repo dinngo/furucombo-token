@@ -23,8 +23,7 @@ contract('TokenVesting', function([_, user, someone]) {
     const mintAmount = ether('1000000'); // 1M
     this.combo = await Combo.new();
     this.vesting = await TokenVesting.new(this.combo.address);
-    await this.combo.addMinter(user);
-    await this.combo.mint(this.vesting.address, mintAmount, { from: user });
+    await this.combo.transfer(this.vesting.address, mintAmount, { from: _ });
   });
 
   beforeEach(async function() {
@@ -210,13 +209,33 @@ contract('TokenVesting', function([_, user, someone]) {
       );
     });
 
-    // TODO: claim by other?
-
     it('normal over cliff under duration', async function() {
       await increase(duration.days('7'));
       const userTokenBefore = await this.combo.balanceOf(user);
       await this.vesting.claim(user, {
         from: user,
+      });
+      const userTokenAfter = await this.combo.balanceOf(user);
+
+      const block = await web3.eth.getBlock('latest');
+      const expectClaim = _amount
+        .mul(utils.toBN(block.timestamp).sub(_start))
+        .div(_duration);
+
+      expect(userTokenAfter.sub(userTokenBefore)).to.be.bignumber.eq(
+        expectClaim
+      );
+      expect(await this.vesting.released(user)).to.be.bignumber.eq(expectClaim);
+      expect(await this.vesting.totalReleased()).to.be.bignumber.eq(
+        expectClaim
+      );
+    });
+
+    it('normal cliam by other', async function() {
+      await increase(duration.days('7'));
+      const userTokenBefore = await this.combo.balanceOf(user);
+      await this.vesting.claim(user, {
+        from: someone,
       });
       const userTokenAfter = await this.combo.balanceOf(user);
 
