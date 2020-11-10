@@ -228,7 +228,7 @@ contract TokenVesting is Ownable {
 
     /**
      * @notice Allows the owner to revoke the vesting. Tokens already vested
-     * remain in the contract, but the released amount will be updated.
+     * remain in the contract, but the amount will be updated.
      * @param _account The address of beneficiary
      */
     function revoke(address _account) public isRegistered(_account) onlyOwner {
