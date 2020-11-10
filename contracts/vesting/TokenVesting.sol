@@ -59,96 +59,56 @@ contract TokenVesting is Ownable {
     /**
      * @return the cliff time of the token vesting.
      */
-    function cliff(address account)
-        public
-        view
-        isRegistered(account)
-        returns (uint256)
-    {
+    function cliff(address account) public view returns (uint256) {
         return _vestingBeneficiaries[account].cliff;
     }
 
     /**
      * @return the start time of the token vesting.
      */
-    function start(address account)
-        public
-        view
-        isRegistered(account)
-        returns (uint256)
-    {
+    function start(address account) public view returns (uint256) {
         return _vestingBeneficiaries[account].start;
     }
 
     /**
      * @return the duration of the token vesting.
      */
-    function duration(address account)
-        public
-        view
-        isRegistered(account)
-        returns (uint256)
-    {
+    function duration(address account) public view returns (uint256) {
         return _vestingBeneficiaries[account].duration;
     }
 
     /**
      * @return true if the vesting is revocable.
      */
-    function revocable(address account)
-        public
-        view
-        isRegistered(account)
-        returns (bool)
-    {
+    function revocable(address account) public view returns (bool) {
         return _vestingBeneficiaries[account].revocable;
     }
 
     /**
      * @return the amount of the token released.
      */
-    function released(address account)
-        public
-        view
-        isRegistered(account)
-        returns (uint256)
-    {
+    function released(address account) public view returns (uint256) {
         return _vestingBeneficiaries[account].released;
     }
 
     /**
      * @return true if the token is revoked.
      */
-    function revoked(address account)
-        public
-        view
-        isRegistered(account)
-        returns (bool)
-    {
+    function revoked(address account) public view returns (bool) {
         return _vestingBeneficiaries[account].revoked;
     }
 
     /**
      * @return the  amount of vesting token
      */
-    function amount(address account)
-        public
-        view
-        isRegistered(account)
-        returns (uint256)
-    {
+    function amount(address account) public view returns (uint256) {
         return _vestingBeneficiaries[account].amount;
     }
 
     /**
      * @return true if the account is initialized.
      */
-    function initialized(address account)
-        public
-        view
-        isRegistered(account)
-        returns (bool)
-    {
+    function initialized(address account) public view returns (bool) {
         return _vestingBeneficiaries[account].initialized;
     }
 
