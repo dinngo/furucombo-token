@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
  * @title Furucombo
- * @dev Furucombo Token contract. Where all tokens are pre-assigned to the creator.
+ * @dev Furucombo Token contract. All tokens are pre-assigned to the creator.
  * Note they can later distribute these tokens as they wish using `transfer` and other
  * `StandardToken` functions.
  */

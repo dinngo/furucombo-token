@@ -17,8 +17,9 @@ contract TokenVesting is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    event TokensReleased(address account, uint256 amount);
-    event TokenVestingRevoked(address account);
+    event Registered(address account, uint256 amount);
+    event Revoked(address account);
+    event Claimed(address account, uint256 amount);
 
     address public vestingToken;
     uint256 public totalReleased;
@@ -40,75 +41,75 @@ contract TokenVesting is Ownable {
     modifier isRegistered(address account) {
         require(
             _vestingBeneficiaries[account].initialized,
-            "TokenVesting: account is unregistered"
+            "TokenVesting: not registered"
         );
         _;
     }
 
     /**
-     * @dev Sets the values for vestingToken. vestingToken is immutable:
+     * @dev Sets the values for vestingToken. VestingToken is immutable:
      * they can only be set once during construction.
      */
 
-    constructor(address token) public Ownable() {
+    constructor(address token) public {
         vestingToken = token;
     }
 
-    /* ========== Public View FUNCTIONS ========== */
+    /* ========== External View FUNCTIONS ========== */
 
     /**
-     * @return the cliff time of the token vesting.
+     * @return The cliff time of the token vesting.
      */
-    function cliff(address account) public view returns (uint256) {
+    function cliff(address account) external view returns (uint256) {
         return _vestingBeneficiaries[account].cliff;
     }
 
     /**
-     * @return the start time of the token vesting.
+     * @return The start time of the token vesting.
      */
-    function start(address account) public view returns (uint256) {
+    function start(address account) external view returns (uint256) {
         return _vestingBeneficiaries[account].start;
     }
 
     /**
-     * @return the duration of the token vesting.
+     * @return The duration of the token vesting.
      */
-    function duration(address account) public view returns (uint256) {
+    function duration(address account) external view returns (uint256) {
         return _vestingBeneficiaries[account].duration;
     }
 
     /**
-     * @return true if the vesting is revocable.
+     * @return True if the vesting is revocable.
      */
-    function revocable(address account) public view returns (bool) {
+    function revocable(address account) external view returns (bool) {
         return _vestingBeneficiaries[account].revocable;
     }
 
     /**
-     * @return the amount of the token released.
+     * @return The amount of the token released.
      */
-    function released(address account) public view returns (uint256) {
+    function released(address account) external view returns (uint256) {
         return _vestingBeneficiaries[account].released;
     }
 
     /**
-     * @return true if the token is revoked.
+     * @return True if the token is revoked.
      */
-    function revoked(address account) public view returns (bool) {
+    function revoked(address account) external view returns (bool) {
         return _vestingBeneficiaries[account].revoked;
     }
 
     /**
-     * @return the  amount of vesting token
+     * @return The amount of vesting token
      */
-    function amount(address account) public view returns (uint256) {
+    function amount(address account) external view returns (uint256) {
         return _vestingBeneficiaries[account].amount;
     }
 
     /**
-     * @return true if the account is initialized.
+     * @return True if the account is initialized.
      */
-    function initialized(address account) public view returns (bool) {
+    function initialized(address account) external view returns (bool) {
         return _vestingBeneficiaries[account].initialized;
     }
 
@@ -128,14 +129,14 @@ contract TokenVesting is Ownable {
         uint256 _duration,
         uint256 _amount,
         bool _revocable
-    ) public onlyOwner {
+    ) external onlyOwner {
         require(
             !_vestingBeneficiaries[_account].initialized,
             "TokenVesting: account has been registered"
         );
         require(
             _account != address(0),
-            "TokenVesting: account is the zero address"
+            "TokenVesting: account is zero address"
         );
         require(
             _cliffDuration <= _duration,
@@ -147,7 +148,7 @@ contract TokenVesting is Ownable {
             "TokenVesting: final time is before current time"
         );
         require(
-            totalAllocated.add(_amount) <=
+            totalAllocated.sub(totalReleased).add(_amount) <=
                 IERC20(vestingToken).balanceOf(address(this)),
             "TokenVesting: insufficient balance"
         );
@@ -171,7 +172,7 @@ contract TokenVesting is Ownable {
      * @param _account The address of beneficiary
      */
     function claim(address _account)
-        public
+        external
         isRegistered(_account)
         returns (uint256)
     {
@@ -179,10 +180,10 @@ contract TokenVesting is Ownable {
         uint256 unreleasedAmt = _releasableAmount(beneficiary);
         require(unreleasedAmt > 0, "TokenVesting: no tokens are due");
 
-        IERC20(vestingToken).safeTransfer(_account, unreleasedAmt);
         beneficiary.released = beneficiary.released.add(unreleasedAmt);
         totalReleased = totalReleased.add(unreleasedAmt);
-        emit TokensReleased(_account, unreleasedAmt);
+        IERC20(vestingToken).safeTransfer(_account, unreleasedAmt);
+        emit Claimed(_account, unreleasedAmt);
         return unreleasedAmt;
     }
 
@@ -191,7 +192,11 @@ contract TokenVesting is Ownable {
      * remain in the contract, but the amount will be updated.
      * @param _account The address of beneficiary
      */
-    function revoke(address _account) public isRegistered(_account) onlyOwner {
+    function revoke(address _account)
+        external
+        onlyOwner
+        isRegistered(_account)
+    {
         Beneficiary storage beneficiary = _vestingBeneficiaries[_account];
         require(beneficiary.revocable, "TokenVesting: cannot revoke");
         require(!beneficiary.revoked, "TokenVesting: account already revoked");
@@ -206,7 +211,7 @@ contract TokenVesting is Ownable {
         beneficiary.amount = beneficiary.amount.sub(refund);
         beneficiary.revoked = true;
         totalAllocated = totalAllocated.sub(refund);
-        emit TokenVestingRevoked(_account);
+        emit Revoked(_account);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */

@@ -1,20 +1,14 @@
 const {
-  balance,
   BN,
-  constants,
   ether,
   expectEvent,
   expectRevert,
   time,
 } = require('@openzeppelin/test-helpers');
-const { tracker } = balance;
 const { latest } = time;
 const abi = require('ethereumjs-abi');
 const utils = web3.utils;
-
 const { expect } = require('chai');
-
-// const { WETH_TOKEN, WETH_PROVIDER } = require('./utils/constants');
 const { evmRevert, evmSnapshot } = require('./utils/utils');
 
 const Combo = artifacts.require('COMBO');
@@ -33,7 +27,6 @@ contract('COMBO', function([_, user, someone]) {
   });
 
   describe('transfer', function() {
-    beforeEach(async function() {});
     it('normal', async function() {
       const totalSupply = ether('100000000'); // 100M
       expect(await this.combo.totalSupply()).to.be.bignumber.eq(totalSupply);

@@ -1,5 +1,5 @@
-const combo = artifacts.require('COMBO');
+const Combo = artifacts.require('COMBO');
 
 module.exports = function(deployer) {
-  deployer.deploy(combo);
+  deployer.deploy(Combo);
 };
