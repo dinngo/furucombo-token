@@ -359,10 +359,10 @@ contract('TokenVesting', function([_, user, someone]) {
       const userAmount = await this.vesting.amount.call(user);
       expect(await this.vesting.revoked.call(user)).to.be.true;
 
+      const refund = totalAllocatedBefore.sub(totalAllocatedAfter);
+
       // remaining tokens user can claim
-      expect(
-        totalAllocatedBefore.sub(totalAllocatedAfter).add(userAmount)
-      ).to.be.bignumber.eq(_amount);
+      expect(_amount.sub(refund)).to.be.bignumber.eq(userAmount);
 
       // claim remaining tokens
       const userTokenBefore = await this.combo.balanceOf(user);
