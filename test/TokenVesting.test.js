@@ -209,12 +209,12 @@ contract('TokenVesting', function([_, user, someone]) {
     it('Normal over cliff under duration', async function() {
       await increase(duration.days('7'));
       const userTokenBefore = await this.combo.balanceOf(user);
-      await this.vesting.claim(user, {
+      const tx = await this.vesting.claim(user, {
         from: user,
       });
       const userTokenAfter = await this.combo.balanceOf(user);
 
-      const block = await web3.eth.getBlock('latest');
+      const block = await web3.eth.getBlock(tx.receipt.blockNumber);
       const expectClaim = _amount
         .mul(utils.toBN(block.timestamp).sub(_start))
         .div(_duration);
@@ -233,12 +233,12 @@ contract('TokenVesting', function([_, user, someone]) {
     it('Normal cliam by others', async function() {
       await increase(duration.days('7'));
       const userTokenBefore = await this.combo.balanceOf(user);
-      await this.vesting.claim(user, {
+      const tx = await this.vesting.claim(user, {
         from: someone,
       });
       const userTokenAfter = await this.combo.balanceOf(user);
 
-      const block = await web3.eth.getBlock('latest');
+      const block = await web3.eth.getBlock(tx.receipt.blockNumber);
       const expectClaim = _amount
         .mul(utils.toBN(block.timestamp).sub(_start))
         .div(_duration);
@@ -285,10 +285,10 @@ contract('TokenVesting', function([_, user, someone]) {
       );
 
       const userTokenBefore = await this.combo.balanceOf.call(someone);
-      await this.vesting.claim(someone, { from: someone });
+      const tx = await this.vesting.claim(someone, { from: someone });
       const userTokenAfter = await this.combo.balanceOf.call(someone);
 
-      const block = await web3.eth.getBlock('latest');
+      const block = await web3.eth.getBlock(tx.receipt.blockNumber);
       const expectClaim = _amount
         .mul(utils.toBN(block.timestamp).sub(_start))
         .div(_duration);
@@ -366,11 +366,11 @@ contract('TokenVesting', function([_, user, someone]) {
 
       // claim remaining tokens
       const userTokenBefore = await this.combo.balanceOf(user);
-      await this.vesting.claim(user, {
+      const tx = await this.vesting.claim(user, {
         from: user,
       });
       const userTokenAfter = await this.combo.balanceOf(user);
-      const block = await web3.eth.getBlock('latest');
+      const block = await web3.eth.getBlock(tx.receipt.blockNumber);
       const expectClaim = _amount
         .mul(utils.toBN(block.timestamp).sub(_start))
         .div(_duration);
